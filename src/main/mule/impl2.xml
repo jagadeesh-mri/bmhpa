@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="someFlowName" doc:id="6955a1cb-e806-4b9d-bae6-dc0a4a4aa8e2" >
+		<set-variable value='#[attributes.queryParams.hotelGroup default "ALL"]' doc:name="Set Variable" doc:id="f74cf5d8-df8c-4b24-9f32-46cfbdd7c716" variableName="hotelGroup" />
+		<flow-ref doc:name="choiceWithScatterGatherFlow" doc:id="9b568130-4aaf-4ced-99cf-24a0c9840b70" name="choiceWithScatterGatherFlow" />
+		<ee:transform doc:name="Transform Message" doc:id="a5a0faec-9001-4142-8e7e-ce8eef0ef5aa">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+flatten(payload..payload)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="choiceWithScatterGatherFlow" doc:id="5dd280df-0ea2-4946-a970-fe66ba5496e0" >
+		<scatter-gather doc:name="Scatter-Gather" doc:id="ed35815c-91d5-4011-bbf7-7993d1c5f549">
+			<route>
+				<choice doc:name="Choice" doc:id="e00b92e9-8010-4c68-ab5f-45efedef7823">
+			<when expression='#[contains(vars.hotelGroup,"OYO")]'>
+						<flow-ref doc:name="getOyoHotelsFlow" doc:id="add979e5-8af6-4708-862a-e09a7376acc3" name="getOyoHotelsFlow" />
+					</when>
+		</choice>
+			</route>
+			<route>
+				<choice doc:name="Choice" doc:id="91102b29-101f-494c-85bd-ec5cbbffcca8">
+			<when expression='#[contains(vars.hotelGroup,"KEYS")]'>
+						<flow-ref doc:name="getKeysHotelsFlow" doc:id="e746f9cf-bf79-4332-b96b-1c529284e50f" name="getKeysHotelsFlow" />
+					</when>
+		</choice>
+			</route>
+			<route>
+				<choice doc:name="Choice" doc:id="9e64378d-f977-4cda-8fd7-98e96f4316d5">
+			<when expression='#[contains(vars.hotelGroup,"FAB")]'>
+						<flow-ref doc:name="getFabHotelsFlow" doc:id="023ba6ca-1b3f-4b10-aecb-5908637aa25a" name="getFabHotelsFlow" />
+					</when>
+		</choice>
+			</route>
+		</scatter-gather>
+	</flow>
+</mule>

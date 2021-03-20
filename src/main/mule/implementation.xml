@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:oyo-hotels-restapi="http://www.mulesoft.org/schema/mule/oyo-hotels-restapi" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/oyo-hotels-restapi http://www.mulesoft.org/schema/mule/oyo-hotels-restapi/current/mule-oyo-hotels-restapi.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<oyo-hotels-restapi:config name="OYO_Hotels_REST_API_Config" doc:name="OYO Hotels REST API Config" doc:id="9d576696-cee5-4f6f-89be-2ea06b823451" property_client-id="370386b6ff0d446e8eb93a70587a4643" property_client-secret="bEbD196F0Ba042589c41d65279A916F2"/>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="99e7f717-32d1-4f29-8275-e37d49571063" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="root" database="training" />
+	</db:config>
+	<wsc:config name="Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="6e0d8c34-c36e-40dd-a05d-9e888d478c08" >
+		<wsc:connection wsdlLocation="http://keys-hotels-soap-api-mvj2.us-e2.cloudhub.io/soap/keys?wsdl" service="HotelBookingService" port="HotelBookingPort" address="http://keys-hotels-soap-api-mvj2.us-e2.cloudhub.io/soap/keys" >
+			<wsc:web-service-security actor="http://schemas.xmlsoap.org/soap/actor/next" />
+		</wsc:connection>
+	</wsc:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="04ebaad6-5a39-406b-add1-0ec4209d8773" >
+		<http:request-connection host="fab-hotels-api1.us-e2.cloudhub.io" port="80" />
+	</http:request-config>
+	<ee:object-store-caching-strategy name="Caching_Strategy" doc:name="Caching Strategy" doc:id="4ab5bcee-2cfe-457d-8be7-12e3b8fcfd32" keyGenerationExpression='#[attributes.queryParams.city default "Bangalore"]' objectStore="Object_store_cache"/>
+	<os:object-store name="Object_store_cache" doc:name="Object store" doc:id="44618ab5-a3d0-4907-b980-211c2527fdc2" persistent="false" maxEntries="100" entryTtl="24" entryTtlUnit="HOURS" />
+	<flow name="getMultipleHotelsFlow" doc:id="9bf3ea11-03a0-4cdc-b712-3eb132bfc78f" >
+		<flow-ref doc:name="someFlowName" doc:id="ed129b1b-3e7c-4971-be8a-0ca41887159b" name="someFlowName" />
+	</flow>
+	<flow name="getHotelsFlow" doc:id="50618649-c17e-41bc-84dd-b11fa76e410b" >
+		<set-variable value='#[attributes.queryParams.hotelGroup default "ALL"]' doc:name="Set Variable" doc:id="24bbcdfd-a9f6-415d-bab1-c88d51333774" variableName="hotelGroup"/>
+		<choice doc:name="Choice" doc:id="05702db6-b878-42e7-80a3-18f0d8aaafe8" >
+			<when expression='#[vars.hotelGroup == "ALL"]'>
+				<flow-ref doc:name="getAllHotelsFlow" doc:id="4acef027-b455-447a-a79a-faadc51b3d42" name="getAllHotelsFlow"/>
+			</when>
+			<when expression='#[vars.hotelGroup == "OYO"]'>
+				<flow-ref doc:name="getOyoHotelsFlow" doc:id="26607c6f-1a2b-4b36-bdba-82315cc62715" name="getOyoHotelsFlow"/>
+			</when>
+			<when expression='#[vars.hotelGroup == "KEYS"]'>
+				<flow-ref doc:name="getKeysHotelsFlow" doc:id="a241440c-0eba-44a6-ae20-77979055ddef" name="getKeysHotelsFlow"/>
+			</when>
+			<when expression='#[vars.hotelGroup == "FAB"]'>
+				<flow-ref doc:name="getFabHotelsFlow" doc:id="a978942f-e44c-404a-9696-eed959b5e878" name="getFabHotelsFlow"/>
+			</when>
+			<otherwise>
+				<set-payload value='#[output application/json&#10;---&#10;{&#10;	message: "The selected hotel group " ++ vars.hotelGroup ++ " is  not supported yet"&#10;}]' doc:name="Set Payload" doc:id="9fca6213-2435-408d-821b-24c91a71544c" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="getAllHotelsFlow" doc:id="48e90278-5107-483b-adbf-1dc7eb26564b" >
+		<scatter-gather doc:name="Scatter-Gather" doc:id="1805b87f-8a0f-4459-b087-16c7c27fb0c1" timeout="10000">
+			<route >
+				<flow-ref doc:name="getOyoHotelsFlow" doc:id="6549b03f-0cb2-42a8-837e-efe19b56a679" name="getOyoHotelsFlow"/>
+			</route>
+			<route >
+				<flow-ref doc:name="getKeysHotelsFlow" doc:id="9e1ce0d0-b74d-432a-85b7-0eca2bd4f110" name="getKeysHotelsFlow"/>
+			</route>
+			<route >
+				<flow-ref doc:name="getFabHotelsFlow" doc:id="82b071af-fcf3-4289-a6a8-95e535732e25" name="getFabHotelsFlow"/>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="7c4cf591-d0c4-41b2-9555-0bba8004c08c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+flatten(payload..payload)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="getOyoHotelsFlow" doc:id="c34c2a19-991f-44dd-b24a-35533c1e3cf2" >
+		<oyo-hotels-restapi:get-all-hotels-from-a-city doc:name="Get All hotels from a city" doc:id="851af094-a1c3-4a8b-a4ec-8864d031c5ae" config-ref="OYO_Hotels_REST_API_Config" city='#[attributes.queryParams.city default "Bangalore"]'/>
+		<ee:transform doc:name="JSON To Common JSON" doc:id="84179336-21d8-4ef6-a22a-a8a43467ac46" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	id: payload01.ID default 0,
+	pincode: payload01.pincode as String,
+	price: payload01.pricePerDay,
+	nameOfHotel: payload01.hotelName,
+	address: payload01.address,
+	city: payload01.city,
+	availability: payload01.emptyRooms,
+	roomType: payload01.room."type",
+	bed: payload01.room.bedSize,
+	airConditioner: payload01.room.temperatureControl,
+	hotelGroup: "OYO"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="b64de0a6-9779-47d6-adf8-d954602f65e1" message="#[output text/plain&#10;---&#10;payload]"/>
+	</flow>
+	<flow name="getKeysHotelsFlow" doc:id="903373d8-c7f1-4a05-bbd3-5f194601736e" >
+		<ee:transform doc:name="City QP To XML" doc:id="c00b0160-1145-4df1-ba6e-962a051745f3">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://soap.mule.training.jagadeesh.com/
+---
+{
+	ns0#searchHotelsInACity: {
+		cityToSearch: attributes.queryParams.city default "Bangalore"
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="KEYS Hotels SOAP API" doc:id="027d1393-729a-4ca0-aad7-4215d4a507b9" config-ref="Web_Service_Consumer_Config" operation="searchHotelsInACity">
+		</wsc:consume>
+		<ee:transform doc:name="XML To Common JSON" doc:id="8c9d79ce-c960-40a8-af71-afd7eb31fdfe" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+ns ns0 http://soap.mule.training.jagadeesh.com/
+---
+payload.body.ns0#hotels.*hotel map ( hotel , indexOfHotel ) -> {
+	id: hotel.hotelId as Number default 0,
+	pincode: hotel.pincode default "",
+	price: hotel.price default 0,
+	nameOfHotel: hotel.hotelName default "",
+	address: hotel.address default "",
+	city: hotel.city default "",
+	availability: hotel.rooms default 0,
+	roomType: hotel.roomType default "",
+	bed: hotel.bedType default "",
+	airConditioner: hotel.AC default true,
+	hotelGroup: "KEYS"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="getFabHotelsFlow" doc:id="04372983-ca2d-4f46-9d59-d290ff1fc47b" >
+		<set-variable value='#[attributes.queryParams.city default "Bangalore"]' doc:name="Set Variable" doc:id="052f6c13-fa51-4042-9634-ac47ab4cf25d" variableName="city"/>
+		<ee:cache doc:name="Cache" doc:id="63773ab8-c4e6-4bbd-ba5e-d297f5e5aae5" cachingStrategy-ref="Caching_Strategy">
+			<http:request method="GET" doc:name="FAB Hotels REST API" doc:id="a564e3dd-4ff6-47b8-b86d-ed93620ba903" config-ref="HTTP_Request_configuration" path="/hotels/{city}">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	city : vars.city
+}]]]></http:uri-params>
+		</http:request>
+			<ee:transform doc:name="JSON To Common JSON" doc:id="c7f69c1b-ba7a-42cd-a071-9c73ecd8c746">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	id: payload01.ID,
+	pincode: payload01.areacode,
+	price: payload01.price,
+	nameOfHotel: payload01.nameOfHotel,
+	address: payload01.address,
+	city: payload01.city,
+	availability: payload01.numberOfRoomAvailable,
+	roomType: payload01.roomType,
+	bed: payload01.typeOfBed,
+	airConditioner: payload01.AC,
+	hotelGroup: "FAB"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<logger level="INFO" doc:name="Logger" doc:id="83344b04-07f2-4698-8325-3540cfab91c2" message="External API has been hit"/>
+		</ee:cache>
+	</flow>
+</mule>
